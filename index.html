@@ -3,40 +3,61 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>News Feed (CSV)</title>
-  <meta name="description" content="Lightweight news feed that reads a CSV and renders cards. 100% free, static-only.">
-  <!-- Minimal CSS (no frameworks) -->
+  <title>Hedgepoint News Feed</title>
+  <meta name="description" content="Hedgepoint Global Markets – News feed powered by a published CSV.">
+  <!-- Brand fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+  <!-- Brand CSS -->
   <style>
     :root{
-      --bg:#0f172a; /* slate-900 */
-      --card:#111827; /* gray-900 */
-      --muted:#9ca3af; /* gray-400 */
-      --text:#e5e7eb; /* gray-200 */
-      --accent:#22d3ee; /* cyan-400 */
-      --accent-2:#a78bfa; /* violet-400 */
+      --hp-orange:#ED8B00;
+      --hp-blue:#272259;
+      --hp-black:#000000;
+      --hp-white:#FFFFFF;
+      --hp-offwhite:#F8F9F7;
+      --hp-gray:#4D4C4D;
+      --hp-darkgray:#222222;
+      --hp-yellow:#FFC60A;
+      --hp-aqua:#25B99B;
+      --hp-green:#7ABF36;
+      --hp-red:#E13C15;
+      --radius:16px;
     }
     *{box-sizing:border-box}
-    body{margin:0;background:linear-gradient(180deg,#0b1224,#0f172a);color:var(--text);font:16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial}
+    body{margin:0;background:var(--hp-offwhite);color:var(--hp-darkgray);font:16px/1.6 "Open Sans", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial}
     .container{max-width:1100px;margin:0 auto;padding:32px 16px}
-    header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:16px}
-    h1{font-size:clamp(20px,3vw,28px);margin:0}
+    header{background:var(--hp-blue);color:var(--hp-white);} 
+    header .wrap{max-width:1100px;margin:0 auto;padding:20px 16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between} 
+    h1{font-family:Montserrat, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;font-weight:700;font-size:clamp(20px,3vw,28px);margin:0}
     .controls{display:flex;flex-wrap:wrap;gap:8px}
-    input[type="search"], select, button, .tag{border:1px solid #1f2937;background:#0b1220;color:var(--text);padding:8px 10px;border-radius:10px}
+    input[type="search"], select, button, .tag{border:1px solid #d7d9df;background:#fff;color:var(--hp-darkgray);padding:10px 12px;border-radius:12px}
+    input[type="search"]:focus, select:focus{outline:2px solid rgba(237,139,0,.35);border-color:var(--hp-orange)}
     button{cursor:pointer}
-    .tag{cursor:pointer;user-select:none}
-    .tag.active{outline:2px solid var(--accent)}
+    button#reload{background:#fff;border-color:#111;color:#111;font-weight:600} 
+    .quick{max-width:1100px;margin:8px auto 0;padding:0 16px 12px;display:flex;gap:8px;flex-wrap:wrap}
+    .tag{cursor:pointer;user-select:none;background:#fff}
+    .tag.active{background:#111;color:#fff;border-color:#111;font-weight:600} 
+    .tag[data-tag="Nacional"].active{background:var(--hp-orange);border-color:var(--hp-orange);color:#fff}
+    .tag[data-tag="Internacional"].active{background:var(--hp-blue);border-color:var(--hp-blue);color:#fff} 
+    main{max-width:1100px;margin:0 auto;padding:16px}
     .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
-    .card{grid-column:span 12;background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.01));border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:16px}
+    .card{grid-column:span 12;background:#fff;border:1px solid #e6e7ec;border-radius:var(--radius);padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.04);border-left:4px solid transparent}
     @media (min-width:720px){.card{grid-column:span 6}}
     @media (min-width:1024px){.card{grid-column:span 4}}
-    .title{font-weight:700;font-size:18px;margin:0 0 6px}
-    .title a{color:#fff;text-decoration:none}
+    .card.tag-nacional{border-left-color:var(--hp-orange)} 
+    .card.tag-internacional{border-left-color:var(--hp-blue)} 
+    .title{font-family:Montserrat, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;font-weight:700;font-size:18px;margin:0 0 6px}
+    .title a{color:var(--hp-blue);text-decoration:none}
     .title a:hover{text-decoration:underline}
-    .meta{font-size:13px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap}
-    .pill{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.12);font-size:12px;color:#d1d5db}
-    .desc{margin-top:10px;color:#dbeafe}
-    .empty{opacity:.7;text-align:center;padding:32px}
-    footer{margin-top:20px;color:var(--muted);font-size:12px;text-align:center}
+    .meta{font-size:13px;color:#6b7280;display:flex;gap:10px;flex-wrap:wrap}
+    .pill{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;border:1px solid #e2e4ea;font-size:12px;color:var(--hp-gray);background:#fff}
+    .pill.tag-nacional{background:var(--hp-orange);border-color:var(--hp-orange);color:#fff} 
+    .pill.tag-internacional{background:var(--hp-blue);border-color:var(--hp-blue);color:#fff} 
+    .desc{margin-top:10px;color:#2b2e34}
+    .empty{opacity:.8;text-align:center;padding:32px}
+    footer{max-width:1100px;margin:6px auto 24px;color:#6b7280;font-size:12px;text-align:center}
   </style>
   <!-- Day.js for date parsing/formatting -->
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
@@ -48,18 +69,25 @@
 <body>
   <div class="container">
     <header>
-      <h1>News Feed (CSV)</h1>
-      <div class="controls">
-        <input id="search" type="search" placeholder="Search… (title, outlet, summary)" />
-        <select id="sort">
-          <option value="newest">Newest first</option>
-          <option value="oldest">Oldest first</option>
-          <option value="az">Title A→Z</option>
-          <option value="za">Title Z→A</option>
-        </select>
-        <button id="reload">Reload</button>
+      <div class="wrap">
+        <h1>Hedgepoint News Feed</h1>
+        <div class="controls">
+          <input id="search" type="search" placeholder="Buscar… (título, veículo, resumo)" />
+          <select id="sort">
+            <option value="newest">Mais recentes</option>
+            <option value="oldest">Mais antigas</option>
+            <option value="az">Título A→Z</option>
+            <option value="za">Título Z→A</option>
+          </select>
+          <button id="reload">Reload</button>
+        </div>
       </div>
     </header>
+
+    <div class="quick">
+      <span class="tag" data-tag="Nacional">Nacional</span>
+      <span class="tag" data-tag="Internacional">Internacional</span>
+    </div>
 
     <div class="controls" style="margin-bottom:12px">
       <span class="tag" data-tag="Nacional">Nacional</span>
@@ -97,7 +125,7 @@ const HEADER_ALIASES = {
   url: ['link','url','href'],
   outlet: ['veiculo','veículo','fonte','outlet','source','publisher'],
   summary: ['resumo','descricao','descrição','summary','description'],
-  tag: ['tag','tags','categoria','categoria(s)','label']
+  tag: ['tag','tags','categoria','categoria(s)','label','classificacao','classificação','tipo','nacional/internacional','nacional','internacional']
 };
 
 let RAW_ROWS = [];
@@ -143,20 +171,19 @@ function fetchCSV(bustCache=false){
       console.error('CSV load error', err);
       $grid.innerHTML = '';
       $empty.hidden = false;
-      $empty.textContent = 'Failed to load CSV. Make sure the file is public and next to this HTML.';
+      $empty.textContent = 'Failed to load CSV. Make sure the file is public.';
     }
   });
 }
 
 function normalizeRows(rows){
-  // Build a key map from CSV headers to canonical keys
   const mapKey = (key) => {
     const k = (key||'').trim().toLowerCase();
     for (const canonical in HEADER_ALIASES){
       const list = HEADER_ALIASES[canonical];
       if (list.includes(k)) return canonical;
     }
-    return k; // fallback to original
+    return k; // fallback
   };
 
   if (!rows.length) return [];
@@ -168,42 +195,42 @@ function normalizeRows(rows){
     const obj = {};
     for (const k in r){ obj[keyMap[k]] = (r[k]||'').toString().trim(); }
 
-    // Parse date in common formats; keep original if needed
+    // parse date
     obj.dateParsed = parseDate(obj.date);
 
-    // Normalize tags: split by comma/; and trim
-    obj.tags = (obj.tag||'').split(/[,;|]/).map(s => s.trim()).filter(Boolean);
+    // normalize tags (Nacional/Internacional)
+    let tags = (obj.tag||'').split(/[,;|]/).map(s => s.trim()).filter(Boolean);
+    if (!tags.length){
+      // Fallback: infer from language heuristics (PT => Nacional, outras => Internacional)
+      const text = [obj.title, obj.summary, obj.outlet].join(' ');
+      tags = [ isPortuguese(text) ? 'Nacional' : 'Internacional' ];
+    } else {
+      // Canonicalize values
+      tags = tags.map(t => {
+        const s = t.toLowerCase();
+        if (s.includes('nacion')) return 'Nacional';
+        if (s.includes('intern')) return 'Internacional';
+        return t; 
+      });
+    }
+    obj.tags = tags;
 
     return obj;
   });
-}
-
-function parseDate(v){
-  if (!v) return null;
-  const s = v.trim();
-  const fmts = [
-    'YYYY-MM-DD','DD/MM/YYYY','DD/MM/YY','MM/DD/YYYY','YYYY/MM/DD','D MMM YYYY','MMM D, YYYY','YYYY.MM.DD'
-  ];
-  for (const f of fmts){
-    const d = dayjs(s, f, true);
-    if (d.isValid()) return d;
-  }
-  // try native
-  const d2 = dayjs(s);
-  return d2.isValid() ? d2 : null;
 }
 
 function render(){
   const q = ($search.value||'').toLowerCase();
 
   let list = RAW_ROWS.filter(row => {
-    // Tag filter
+    // active tag filter
     if (ACTIVE_TAGS.size){
-      if (!row.tags || !row.tags.some(t => ACTIVE_TAGS.has(t))) return false;
+      const hasTag = (row.tags||[]).some(t => ACTIVE_TAGS.has(t));
+      if (!hasTag) return false;
     }
-    // Search filter
+    // text search
     if (q){
-      const hay = [row.title,row.outlet,row.summary,row.tag].join(' ').toLowerCase();
+      const hay = [row.title,row.outlet,row.summary,(row.tags||[]).join(' ')].join(' ').toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -228,11 +255,7 @@ function render(){
   });
 
   $grid.innerHTML = '';
-
-  if (!list.length){
-    $empty.hidden = false;
-    return;
-  }
+  if (!list.length){ $empty.hidden = false; return; }
   $empty.hidden = true;
 
   for (const row of list){
@@ -242,20 +265,40 @@ function render(){
     const dateStr = row.dateParsed ? row.dateParsed.format('DD/MM/YYYY') : (row.date || '');
     const summary = row.summary || '';
     const tags = row.tags || [];
+    const firstTag = slugify(tags[0]||'');
 
     const card = document.createElement('article');
-    card.className = 'card';
+    card.className = `card ${firstTag ? 'tag-'+firstTag : ''}`;
     card.innerHTML = `
       <h3 class="title"><a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(title)}</a></h3>
       <div class="meta">
         ${dateStr ? `<span class="pill">🗓️ ${escapeHTML(dateStr)}</span>` : ''}
         ${outlet ? `<span class="pill">🏷️ ${escapeHTML(outlet)}</span>` : ''}
-        ${tags.map(t => `<span class="pill">${escapeHTML(t)}</span>`).join('')}
+        ${tags.map(t => `<span class=\"pill tag-${slugify(t)}\">${escapeHTML(t)}</span>`).join('')}
       </div>
       ${summary ? `<p class="desc">${escapeHTML(summary)}</p>` : ''}
     `;
     $grid.appendChild(card);
   }
+}
+
+function slugify(str){
+  return (str||'').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+}
+
+function isPortuguese(text){
+  const s = (text||'').toLowerCase();
+  // quick diacritics check
+  if(/[áâãàéêíóôõúç]/.test(s)) return true;
+  // common PT stopwords and prepositions
+  const hits = [' de ',' do ',' da ',' dos ',' das ',' para ',' com ',' em ',' por ',' sem ',' sobre ',' entre ',' pelo ',' pela ',' aos ',' às ',' ao ',' à ',' não ',' será ',' foram ',' está ',' também '];
+  let score = 0;
+  for (const w of hits){ if (s.includes(w)) score++; }
+  // simple heuristic threshold
+  return score >= 2;
+}(str){
+  return (str||'').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+}
 }
 
 function escapeHTML(str){
