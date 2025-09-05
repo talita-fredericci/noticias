@@ -62,63 +62,12 @@
   <!-- Day.js for date parsing/formatting -->
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/customParseFormat.js"></script>
-  <script>dayjs.extend(window.dayjs_plugin_customParseFormat)</script>
-  <!-- PapaParse for CSV -->
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-</head>
-<body>
-  <div class="container">
-    <header>
-      <div class="wrap">
-        <h1>Hedgepoint News Feed</h1>
-        <div class="controls">
-          <input id="search" type="search" placeholder="Buscar… (título, veículo, resumo)" />
-          <select id="sort">
-            <option value="newest">Mais recentes</option>
-            <option value="oldest">Mais antigas</option>
-            <option value="az">Título A→Z</option>
-            <option value="za">Título Z→A</option>
-          </select>
-          <button id="reload">Reload</button>
-        </div>
-      </div>
-    </header>
-
-    <div class="quick">
-      <span class="tag" data-tag="Nacional">Nacional</span>
-      <span class="tag" data-tag="Internacional">Internacional</span>
-    </div>
-
-    <div class="controls" style="margin-bottom:12px">
-      <span class="tag" data-tag="Nacional">Nacional</span>
-      <span class="tag" data-tag="Internacional">Internacional</span>
-      <!-- Add more quick-tags if you use other labels in your CSV -->
-    </div>
-
-    <main class="grid" id="grid"></main>
-    <div id="empty" class="empty" hidden>No results found. Try clearing filters.</div>
-
-    <footer>
-      <div>Static site. Data loaded from a CSV file at runtime. Update the CSV and the feed updates automatically.</div>
-    </footer>
-  </div>
-
-<script>
-/**
- * HOW TO DEPLOY (100% FREE):
- * 1) Place this file (index.html) and your CSV (noticias.csv) in the same folder of a public GitHub repo.
- * 2) In GitHub → Settings → Pages → set Build and deployment to main branch (/root). Copy the public URL.
- * 3) To update the feed, edit/add rows in noticias.csv and commit. The site will reflect changes on reload.
- *
- * If you must keep a different CSV filename or host (e.g., Google Sheets "Publish to web" → CSV), just change CSV_URL below.
- * IMPORTANT: If you use SharePoint/OneDrive links, you may hit CORS/auth issues. The safest is keeping the CSV in the same repo.
- */
-
+  <script>
 // === CONFIG ===
-const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRylZeZ-nRjTQy6KHzcJSp9Wo28KrLFfJKhORvj8_-5Kv1thY9SdjKuXfoXr24FzopqR34Xr-us-_fi/pub?gid=583607882&single=true&output=csv'; // default expects the CSV next to this HTML
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRylZeZ-nRjTQy6KHzcJSp9Wo28KrLFfJKhORvj8_-5Kv1thY9SdjKuXfoXr24FzopqR34Xr-us-_fi/pub?gid=583607882&single=true&output=csv';
 const AUTO_REFRESH_MINUTES = 0; // set to >0 to auto-reload (e.g., 5)
 
-// Optional: map common header aliases → canonical keys we use internally
+// Header aliases (PT/EN)
 const HEADER_ALIASES = {
   date: ['data','date','published','publish_date','dia'],
   title: ['titulo','título','title','headline'],
@@ -158,7 +107,7 @@ if (AUTO_REFRESH_MINUTES > 0) {
 fetchCSV();
 
 function fetchCSV(bustCache=false){
-  const url = bustCache ? `${CSV_URL}?t=${Date.now()}` : CSV_URL;
+  const url = bustCache ? `${CSV_URL}&t=${Date.now()}` : CSV_URL;
   Papa.parse(url, {
     download: true,
     header: true,
@@ -171,9 +120,21 @@ function fetchCSV(bustCache=false){
       console.error('CSV load error', err);
       $grid.innerHTML = '';
       $empty.hidden = false;
-      $empty.textContent = 'Failed to load CSV. Make sure the file is public.';
+      $empty.textContent = 'Falha ao carregar o CSV. Verifique se o link público está correto.';
     }
   });
+}
+
+function parseDate(v){
+  if (!v) return null;
+  const s = v.trim();
+  const fmts = ['YYYY-MM-DD','DD/MM/YYYY','DD/MM/YY','MM/DD/YYYY','YYYY/MM/DD','D MMM YYYY','MMM D, YYYY','YYYY.MM.DD'];
+  for (const f of fmts){
+    const d = dayjs(s, f, true);
+    if (d.isValid()) return d;
+  }
+  const d2 = dayjs(s);
+  return d2.isValid() ? d2 : null;
 }
 
 function normalizeRows(rows){
@@ -183,7 +144,7 @@ function normalizeRows(rows){
       const list = HEADER_ALIASES[canonical];
       if (list.includes(k)) return canonical;
     }
-    return k; // fallback
+    return k;
   };
 
   if (!rows.length) return [];
@@ -195,22 +156,20 @@ function normalizeRows(rows){
     const obj = {};
     for (const k in r){ obj[keyMap[k]] = (r[k]||'').toString().trim(); }
 
-    // parse date
     obj.dateParsed = parseDate(obj.date);
 
-    // normalize tags (Nacional/Internacional)
+    // Build tags
     let tags = (obj.tag||'').split(/[,;|]/).map(s => s.trim()).filter(Boolean);
     if (!tags.length){
-      // Fallback: infer from language heuristics (PT => Nacional, outras => Internacional)
+      // Heuristic: PT ⇒ Nacional; otherwise ⇒ Internacional
       const text = [obj.title, obj.summary, obj.outlet].join(' ');
       tags = [ isPortuguese(text) ? 'Nacional' : 'Internacional' ];
     } else {
-      // Canonicalize values
       tags = tags.map(t => {
         const s = t.toLowerCase();
         if (s.includes('nacion')) return 'Nacional';
         if (s.includes('intern')) return 'Internacional';
-        return t; 
+        return t;
       });
     }
     obj.tags = tags;
@@ -223,12 +182,12 @@ function render(){
   const q = ($search.value||'').toLowerCase();
 
   let list = RAW_ROWS.filter(row => {
-    // active tag filter
+    // Filter by active tags
     if (ACTIVE_TAGS.size){
       const hasTag = (row.tags||[]).some(t => ACTIVE_TAGS.has(t));
       if (!hasTag) return false;
     }
-    // text search
+    // Text search
     if (q){
       const hay = [row.title,row.outlet,row.summary,(row.tags||[]).join(' ')].join(' ').toLowerCase();
       if (!hay.includes(q)) return false;
@@ -259,7 +218,7 @@ function render(){
   $empty.hidden = true;
 
   for (const row of list){
-    const title = row.title || '(untitled)';
+    const title = row.title || '(sem título)';
     const url = row.url || '#';
     const outlet = row.outlet || '';
     const dateStr = row.dateParsed ? row.dateParsed.format('DD/MM/YYYY') : (row.date || '');
@@ -274,7 +233,7 @@ function render(){
       <div class="meta">
         ${dateStr ? `<span class="pill">🗓️ ${escapeHTML(dateStr)}</span>` : ''}
         ${outlet ? `<span class="pill">🏷️ ${escapeHTML(outlet)}</span>` : ''}
-        ${tags.map(t => `<span class=\"pill tag-${slugify(t)}\">${escapeHTML(t)}</span>`).join('')}
+        ${tags.map(t => `<span class="pill tag-${slugify(t)}">${escapeHTML(t)}</span>`).join('')}
       </div>
       ${summary ? `<p class="desc">${escapeHTML(summary)}</p>` : ''}
     `;
@@ -283,22 +242,18 @@ function render(){
 }
 
 function slugify(str){
-  return (str||'').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+  return (str||'').toString().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/[^a-z0-9]+/g,'-')
+    .replace(/(^-|-$)/g,'');
 }
 
 function isPortuguese(text){
   const s = (text||'').toLowerCase();
-  // quick diacritics check
-  if(/[áâãàéêíóôõúç]/.test(s)) return true;
-  // common PT stopwords and prepositions
+  if(/[áâãàéêíóôõúç]/.test(s)) return true; // diacritics quick check
   const hits = [' de ',' do ',' da ',' dos ',' das ',' para ',' com ',' em ',' por ',' sem ',' sobre ',' entre ',' pelo ',' pela ',' aos ',' às ',' ao ',' à ',' não ',' será ',' foram ',' está ',' também '];
-  let score = 0;
-  for (const w of hits){ if (s.includes(w)) score++; }
-  // simple heuristic threshold
+  let score = 0; for (const w of hits){ if (s.includes(w)) score++; }
   return score >= 2;
-}(str){
-  return (str||'').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
-}
 }
 
 function escapeHTML(str){
