@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Repositório de Notícias — Hedgepoint</title>
 
+<!-- Montserrat -->
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
 
@@ -40,6 +41,7 @@
   .title-wrap{display:flex;flex-direction:column;gap:6px;}
   .title{font-weight:700;font-size:18px;line-height:1.25;margin:0;}
   .tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#fff;background:var(--hp-black);padding:6px 10px;border-radius:999px;width:max-content;}
+  .tag[hidden]{display:none}
   .vehicle{display:flex;align-items:center;gap:10px;margin-top:2px;}
   .vehicle img{width:22px;height:22px;border-radius:50%;border:1px solid #eee;object-fit:cover;background:#fff;}
   .vehicle span{font-size:12px;color:var(--hp-gray)}
@@ -64,7 +66,7 @@
           <option value="Internacional">Internacional</option>
         </select>
       </div>
-      <div class="control">
+      <div class="control" id="commodityControl" hidden>
         <label for="commodity">Commodity</label>
         <select id="commodity">
           <option value="">Todas</option>
@@ -84,170 +86,12 @@
     <div id="emptyState" class="empty" style="display:none">Nenhuma notícia encontrada com os filtros atuais.</div>
   </div>
 
+  <!-- PapaParse -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script>
   (function(){
-  const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRylZeZ-nRjTQy6KHzcJSp9Wo28KrLFfJKhORvj8_-5Kv1thY9SdjKuXfoXr24FzopqR34Xr-us-_fi/pub?output=csv';
-  const FIELD = {
-      titulo:'Titulo', data:'Data', commodity:'Commodity', url:'URL',
-      escopo:'Escopo', veiculo:'Veiculo', logo:'Logo'
-    };
+    // CSV público (Google Sheets → Publicar na web → CSV)
+    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRylZeZ-nRjTQy6KHzcJSp9Wo28KrLFfJKhORvj8_-5Kv1thY9SdjKuXfoXr24FzopqR34Xr-us-_fi/pub?output=csv';
 
-    const PAGE_SIZE = 9;
-    let master = [], view = [], page = 0;
-
-    const els = {
-      container: document.getElementById('container'),
-      loadMore: document.getElementById('loadMore'),
-      empty: document.getElementById('emptyState'),
-      escopo: document.getElementById('escopo'),
-      commodity: document.getElementById('commodity'),
-      search: document.getElementById('search'),
-      apply: document.getElementById('apply'),
-      stats: document.getElementById('statsLine')
-    };
-
-    const monthsPt = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
-    function parseDateFlexible(s){
-      if(!s) return null; s = String(s).trim();
-      const iso = Date.parse(s); if(!isNaN(iso)) return new Date(iso);
-      const m1 = s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/);
-      if(m1){ const [_, d, m, y] = m1; const year = Number(y.length===2 ? '20'+y : y); return new Date(year, Number(m)-1, Number(d)); }
-      const m2 = s.match(/^(\d{4})[\/.-](\d{1,2})[\/.-](\d{1,2})$/);
-      if(m2){ const [_, y, m, d] = m2; return new Date(Number(y), Number(m)-1, Number(d)); }
-      return null;
-    }
-    function formatDatePt(d){ if(!(d instanceof Date)||isNaN(d)) return ''; const day=d.getDate(), mon=monthsPt[d.getMonth()], year=d.getFullYear(); return `${String(day).padStart(2,'0')} ${mon} ${year}`; }
-    function byDateDesc(a,b){ return (b.__ts||0)-(a.__ts||0); }
-    function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-
-    function extractDomain(u){ try{ const {hostname}=new URL(u); return hostname.replace(/^www\./,''); }catch(_){ return ''; } }
-    function logoForItem(item){
-      if(item.logo) return item.logo.trim();
-      const domain = extractDomain(item.url||'');
-      if(domain) return `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(domain)}`;
-      return 'data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="#ddd"/></svg>');
-    }
-
-    function normalizeRow(r){
-      const dt = parseDateFlexible(r[FIELD.data]||'');
-      return {
-        titulo:(r[FIELD.titulo]||'').trim(),
-        data:(r[FIELD.data]||'').trim(),
-        __date: dt?formatDatePt(dt):'',
-        __ts: dt?dt.getTime():0,
-        commodity:(r[FIELD.commodity]||'').trim(),
-        url:(r[FIELD.url]||'').trim(),
-        escopo:(r[FIELD.escopo]||'').trim(),
-        veiculo:(r[FIELD.veiculo]||'').trim(),
-        logo:(r[FIELD.logo]||'').trim()
-      };
-    }
-
-    function renderCard(item){
-      const esc = (item.escopo||'').toLowerCase();
-      const badgeClass = esc.startsWith('nac') ? 'badge--nacional' : esc.startsWith('int') ? 'badge--internacional' : '';
-      const logoSrc = logoForItem(item);
-      const card = document.createElement('div');
-      card.className='card';
-      card.innerHTML = `
-        <div class="top-row">
-          <span class="badge ${badgeClass}">${escapeHtml(item.escopo||'—')}</span>
-          <span class="date">${escapeHtml(item.__date||'')}</span>
-        </div>
-        <div class="title-wrap">
-          <h5 class="title">${escapeHtml(item.titulo||'Sem título')}</h5>
-          <span class="tag">${escapeHtml(item.commodity||'—')}</span>
-        </div>
-        <div class="vehicle">
-          <img alt="" src="${logoSrc}" onerror="this.src='data:image/svg+xml;utf8,${encodeURIComponent('<svg xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;64&quot; height=&quot;64&quot;><rect width=&quot;64&quot; height=&quot;64&quot; fill=&quot;#ddd&quot;/></svg>')}'">
-          <span>${escapeHtml(item.veiculo||'')}</span>
-        </div>
-        <div class="cta">
-          <a class="button-link" href="${encodeURI(item.url||'#')}" target="_blank" rel="noopener">Ver notícia</a>
-        </div>`;
-      return card;
-    }
-
-    function clearGrid(){ els.container.innerHTML=''; }
-    function paintNextPage(){
-      const start = page*PAGE_SIZE;
-      const slice = view.slice(start, start+PAGE_SIZE);
-      slice.forEach(i=>els.container.appendChild(renderCard(i)));
-      page++;
-      const hasMore = (page*PAGE_SIZE) < view.length;
-      els.loadMore.style.display = hasMore ? '' : 'none';
-      els.empty.style.display = view.length ? 'none' : '';
-    }
-    function dedupe(arr){ return [...new Set(arr)]; }
-    function populateCommodityFilter(){
-      const vals = dedupe(master.map(r=>(r.commodity||'').trim()).filter(Boolean)).sort((a,b)=>a.localeCompare(b,'pt-BR'));
-      els.commodity.innerHTML = '<option value="">Todas</option>' + vals.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
-    }
-
-    function isFiltering(){
-      const esc = els.escopo.value.trim();
-      const com = els.commodity.value.trim();
-      const q   = els.search.value.trim();
-      return !!(esc || com || q);
-    }
-    function plural(n,sing,plur){ return n===1?sing:plur; }
-    function updateStats(){
-      const total = master.length, current = view.length;
-      if(isFiltering()){
-        els.stats.textContent = `Mostrando ${current} ${plural(current,'matéria','matérias')} de ${total} ${plural(total,'menção','menções')}.`;
-      }else{
-        els.stats.textContent = `Total de ${total} ${plural(total,'menção','menções')}.`;
-      }
-    }
-
-    function applyFilters(){
-      const escopoVal = els.escopo.value.trim().toLowerCase();
-      const commVal = els.commodity.value.trim().toLowerCase();
-      const q = els.search.value.trim().toLowerCase();
-
-      view = master.filter(r=>{
-        const okEsc = !escopoVal || (r.escopo||'').toLowerCase().startsWith(escopoVal);
-        const okCo  = !commVal || (r.commodity||'').toLowerCase() === commVal;
-        const okQ   = !q || (r.titulo||'').toLowerCase().includes(q);
-        return okEsc && okCo && okQ;
-      }).sort(byDateDesc);
-
-      page=0; clearGrid(); paintNextPage(); updateStats();
-    }
-
-    els.apply.addEventListener('click', applyFilters);
-    els.loadMore.addEventListener('click', paintNextPage);
-    els.search.addEventListener('keydown', e=>{ if(e.key==='Enter') applyFilters(); });
-
-    function loadCSV(){
-      if(!CSV_URL || CSV_URL.includes('COLE_AQUI')){
-        seedDemo(); return;
-      }
-      Papa.parse(CSV_URL, {
-        download:true, header:true, skipEmptyLines:true,
-        complete:(res)=>{
-          master = res.data.map(normalizeRow).filter(r=>r.titulo && r.url);
-          master.sort(byDateDesc);
-          populateCommodityFilter();
-          applyFilters(); // já atualiza contagem
-        },
-        error:(err)=>{ console.error('Erro CSV:', err); seedDemo(); }
-      });
-    }
-    function seedDemo(){
-      const demo = [
-        {Titulo:'Exportadores de café ajustam posições',Data:'2025-09-03',Commodity:'Café',URL:'https://exemplo.com/cafe',Escopo:'Nacional',Veiculo:'Valor Econômico'},
-        {Titulo:'Soybean market weekly wrap',Data:'03/09/2025',Commodity:'Soja',URL:'https://example.com/soy',Escopo:'Internacional',Veiculo:'Reuters'},
-        {Titulo:'Volatilidade no cacau permanece elevada',Data:'2025/08/28',Commodity:'Cacau',URL:'https://exemplo.com/cacau',Escopo:'Nacional',Veiculo:'Globo Rural'}
-      ];
-      master = demo.map(normalizeRow);
-      populateCommodityFilter();
-      applyFilters();
-    }
-
-    window.addEventListener('load', loadCSV);
-  })();
-  </script>
-</body>
-</html>
+    // Cabeçalhos do CSV (apenas os que você tem; Commodity/Logo são opcionais)
+    const FIELD = {
