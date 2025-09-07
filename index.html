@@ -86,12 +86,240 @@
     <div id="emptyState" class="empty" style="display:none">Nenhuma notícia encontrada com os filtros atuais.</div>
   </div>
 
-  <!-- PapaParse -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script>
   (function(){
-    // CSV público (Google Sheets → Publicar na web → CSV)
-    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSwsgMoXkClAtAb9nii2UcYxUoLQcTfNNLd7wTEmhp5XrPVPfuIUpiDJ78Jt_2fT6-_EprXJGzo_LAm/pub?output=csv';
+    // CSV público
+    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR3Wkg0xuRA_RhRVfyS0azJ80LfzN9Ezm7Xg64J_ebTTm7S3LjmNI8BpqhjOJ-PzyjtCdCeEtfdaFSE/pub?output=csv';
 
-    // Cabeçalhos do CSV (apenas os que você tem; Commodity/Logo são opcionais)
+    // Cabeçalhos (Commodity/Logo opcionais)
     const FIELD = {
+      categoria:'Categoria',
+      titulo:'Titulo',
+      veiculo:'Veiculo',
+      data:'DataPublicacao',
+      url:'URL',
+      escopo:'Escopo',
+      commodity:'Commodity',
+      logo:'Logo'
+    };
+
+    const PAGE_SIZE = 9;
+    let master = [], view = [], page = 0, hasCommodity = false;
+
+    const els = {
+      container: document.getElementById('container'),
+      loadMore: document.getElementById('loadMore'),
+      empty: document.getElementById('emptyState'),
+      escopo: document.getElementById('escopo'),
+      commodity: document.getElementById('commodity'),
+      commodityControl: document.getElementById('commodityControl'),
+      search: document.getElementById('search'),
+      apply: document.getElementById('apply'),
+      stats: document.getElementById('statsLine')
+    };
+
+    // -------- Helpers
+    function clean(s){
+      return String(s||'')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+        .replace(/\s+/g,' ')
+        .trim()
+        .toLowerCase();
+    }
+    const monthsPt = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+
+    // versão robusta: aceita ISO com/sem hora, e DD/MM/YYYY com/sem hora
+    function parseDateFlexible(s){
+      if(!s) return null;
+      s = String(s).trim();
+
+      let t = Date.parse(s);
+      if(!isNaN(t)) return new Date(t);
+
+      // remove hora/timezone e tenta
+      let onlyDate = s.replace(/[T\s].*$/, '');
+      t = Date.parse(onlyDate);
+      if(!isNaN(t)) return new Date(t);
+
+      // YYYY-MM-DD | YYYY/MM/DD | YYYY.MM.DD
+      let m = onlyDate.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/);
+      if(m) return new Date(+m[1], +m[2]-1, +m[3]);
+
+      // DD/MM/YYYY | DD-MM-YYYY
+      m = onlyDate.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+      if(m){
+        const y = m[3].length===2 ? +('20'+m[3]) : +m[3];
+        return new Date(y, +m[2]-1, +m[1]);
+      }
+      return null;
+    }
+    function formatDatePt(d){ if(!(d instanceof Date)||isNaN(d)) return ''; const day=d.getDate(), mon=monthsPt[d.getMonth()], year=d.getFullYear(); return `${String(day).padStart(2,'0')} ${mon} ${year}`; }
+    function byDateDesc(a,b){ return (b.__ts||0)-(a.__ts||0); }
+    function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    function plural(n,sing,plur){ return n===1?sing:plur; }
+
+    function extractDomain(u){ try{ const {hostname}=new URL(u); return hostname.replace(/^www\./,''); }catch(_){ return ''; } }
+    function logoForItem(item){
+      if(item.logo) return item.logo.trim();
+      const domain = extractDomain(item.url||'');
+      if(domain) return `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(domain)}`;
+      return 'data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="#ddd"/></svg>');
+    }
+
+    // -------- Normalização por linha
+    function normalizeRow(r){
+      const escRaw = (r[FIELD.escopo]||'');
+      const escClean = clean(escRaw);
+      let escNorm = '';
+      if(escClean.startsWith('nac')) escNorm = 'nacional';
+      else if(escClean.startsWith('int')) escNorm = 'internacional';
+
+      const dt = parseDateFlexible(r[FIELD.data]||'');
+      const commodityRaw = (r[FIELD.commodity]||'').trim();
+      const commodityNorm = clean(commodityRaw);
+      if(commodityRaw) hasCommodity = true;
+
+      return {
+        categoria:(r[FIELD.categoria]||'').trim(),
+        titulo:(r[FIELD.titulo]||'').trim(),
+        veiculo:(r[FIELD.veiculo]||'').trim(),
+        data:(r[FIELD.data]||'').trim(),
+        __date: dt?formatDatePt(dt):'',
+        __ts: dt?dt.getTime():0,
+        url:(r[FIELD.url]||'').trim(),
+        escopo:(escRaw||'').trim(),  // exibição original
+        __esc: escNorm,               // valor normalizado p/ filtro
+        commodity: commodityRaw,      // exibição original
+        __commodity: commodityNorm,   // valor normalizado p/ filtro
+        logo:(r[FIELD.logo]||'').trim()
+      };
+    }
+
+    // -------- Render
+    function renderCard(item){
+      const esc = (item.__esc||'');
+      const badgeClass = esc === 'nacional' ? 'badge--nacional' : esc === 'internacional' ? 'badge--internacional' : '';
+      const logoSrc = logoForItem(item);
+      const card = document.createElement('div');
+      card.className='card';
+      card.innerHTML = `
+        <div class="top-row">
+          <span class="badge ${badgeClass}">${escapeHtml(item.escopo||'—')}</span>
+          <span class="date">${escapeHtml(item.__date || item.data || '—')}</span>
+        </div>
+        <div class="title-wrap">
+          <h5 class="title">${escapeHtml(item.titulo||'Sem título')}</h5>
+          <span class="tag"${hasCommodity && item.commodity ? '' : ' hidden'}>${escapeHtml(item.commodity||'')}</span>
+        </div>
+        <div class="vehicle">
+          <img alt="" src="${logoSrc}" onerror="this.src='data:image/svg+xml;utf8,${encodeURIComponent('<svg xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;64&quot; height=&quot;64&quot;><rect width=&quot;64&quot; height=&quot;64&quot; fill=&quot;#ddd&quot;/></svg>')}'">
+          <span>${escapeHtml(item.veiculo||'')}</span>
+        </div>
+        <div class="cta">
+          <a class="button-link" href="${encodeURI(item.url||'#')}" target="_blank" rel="noopener">Ver notícia</a>
+        </div>`;
+      return card;
+    }
+
+    function clearGrid(){ els.container.innerHTML=''; }
+    function paintNextPage(){
+      const start = page*PAGE_SIZE;
+      const slice = view.slice(start, start+PAGE_SIZE);
+      slice.forEach(i=>els.container.appendChild(renderCard(i)));
+      page++;
+      const hasMore = (page*PAGE_SIZE) < view.length;
+      els.loadMore.style.display = hasMore ? '' : 'none';
+      els.empty.style.display = view.length ? 'none' : '';
+    }
+
+    function dedupe(arr){ return [...new Set(arr)]; }
+    function populateCommodityFilter(){
+      if(!hasCommodity){
+        els.commodityControl.hidden = true;
+        return;
+      }
+      const values = master.map(r => r.commodity).filter(Boolean);
+      const labels = dedupe(values).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+      els.commodity.innerHTML = '<option value="">Todas</option>' +
+        labels.map(lbl => `<option value="${escapeHtml(clean(lbl))}">${escapeHtml(lbl)}</option>`).join('');
+      els.commodityControl.hidden = false;
+    }
+
+    function isFiltering(){
+      const esc = clean(els.escopo.value);
+      const com = hasCommodity ? clean(els.commodity.value) : '';
+      const q   = clean(els.search.value);
+      return !!(esc || com || q);
+    }
+    function updateStats(){
+      const total = master.length, current = view.length;
+      if(isFiltering()){
+        els.stats.textContent = `Mostrando ${current} ${plural(current,'matéria','matérias')} de ${total} ${plural(total,'menção','menções')}.`;
+      }else{
+        els.stats.textContent = `Total de ${total} ${plural(total,'menção','menções')}.`;
+      }
+    }
+
+    function applyFilters(){
+      const escopoVal = clean(els.escopo.value);          // '' | 'nacional' | 'internacional'
+      const commVal   = hasCommodity ? clean(els.commodity.value) : '';
+      const q         = clean(els.search.value);
+
+      view = master.filter(r=>{
+        const okEsc = !escopoVal || r.__esc === escopoVal;
+        const okCo  = !hasCommodity || !commVal || r.__commodity === commVal;
+        const okQ   = !q || clean(r.titulo).includes(q);
+        return okEsc && okCo && okQ;
+      }).sort(byDateDesc);
+
+      page=0; clearGrid(); paintNextPage(); updateStats();
+    }
+
+    els.apply.addEventListener('click', applyFilters);
+    els.loadMore.addEventListener('click', paintNextPage);
+    els.search.addEventListener('keydown', e=>{ if(e.key==='Enter') applyFilters(); });
+
+    // -------- Boot
+    function loadCSV(){
+      if(!window.Papa){ els.stats.textContent='Erro: biblioteca de leitura (PapaParse) não carregou.'; return; }
+      Papa.parse(CSV_URL, {
+        download:true, header:true, skipEmptyLines:true,
+        complete:(res)=>{
+          try{
+            hasCommodity = false;
+            const rows = res.data || [];
+            master = rows.map(normalizeRow).filter(r => r.titulo && r.url);
+            master.sort(byDateDesc);
+            populateCommodityFilter();
+            applyFilters();
+          }catch(err){
+            console.error('Falha ao processar CSV:', err);
+            showDemo('Falha ao processar CSV.');
+          }
+        },
+        error:(err)=>{
+          console.error('Erro CSV:', err);
+          showDemo('Erro ao baixar o CSV publicado.');
+        }
+      });
+    }
+
+    function showDemo(reason){
+      els.stats.textContent = (reason || 'Dados indisponíveis.') + ' Exibindo exemplos.';
+      const demo = [
+        {Titulo:'Exemplo 1',DataPublicacao:'2025-09-03',URL:'#',Escopo:'Nacional',Veiculo:'Demo'},
+        {Titulo:'Exemplo 2',DataPublicacao:'2025-09-01',URL:'#',Escopo:'Internacional',Veiculo:'Demo'},
+        {Titulo:'Exemplo 3',DataPublicacao:'2025-08-28',URL:'#',Escopo:'Nacional',Veiculo:'Demo'}
+      ];
+      hasCommodity = false;
+      master = demo.map(normalizeRow);
+      populateCommodityFilter();
+      applyFilters();
+    }
+
+    window.addEventListener('load', loadCSV);
+  })();
+  </script>
+</body>
+</html>
