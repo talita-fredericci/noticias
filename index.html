@@ -5,14 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Repositório de Notícias — Hedgepoint</title>
 
-<!-- Montserrat -->
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
 
 <style>
   :root{
     --hp-orange:#ED8B00; --hp-blue:#272259; --hp-black:#000000; --hp-white:#FFFFFF;
-    --hp-off:#F8F9F7; --hp-gray:#4D4C4D; --radius:16px;
+    --hp-off:#F8F9F7; --hp-gray:#4D4C4D; --radius:8px;
   }
   *{box-sizing:border-box}
   html,body{margin:0;background:var(--hp-off);color:var(--hp-black);font-family:Montserrat,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue","Noto Sans",Arial;}
@@ -21,12 +20,11 @@
   h1{font-weight:700;font-size:28px;margin:0 0 8px;}
   .sub{color:var(--hp-gray);margin:0 0 24px;font-size:14px;}
 
-  .controls{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:12px;align-items:end;margin:0 0 20px;}
+  .controls{display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:12px;align-items:end;margin:0 0 20px;}
   .control{display:flex;flex-direction:column;gap:6px;}
   .control label{font-size:12px;color:var(--hp-gray)}
-  .control select,.control input{border:1px solid #ddd;border-radius:10px;padding:10px 12px;background:#fff;font:inherit;outline:none;}
-  .btn{border-radius:999px;padding:10px 16px;background:var(--hp-black);color:#fff;border:none;cursor:pointer;font-weight:700;}
-  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .control select,.control input{border:1px solid #ddd;border-radius:4px;padding:10px 12px;background:#fff;font:inherit;outline:none;}
+  .btn{border-radius:4px;padding:10px 16px;background:var(--hp-black);color:#fff;border:none;cursor:pointer;font-weight:700;}
 
   #container{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
   @media (max-width:980px){#container{grid-template-columns:repeat(2,1fr);}}
@@ -34,18 +32,18 @@
 
   .card{background:#fff;border:1px solid #eee;border-radius:var(--radius);box-shadow:0 1px 2px rgba(0,0,0,.05);padding:16px;display:flex;flex-direction:column;gap:10px;}
   .top-row{display:flex;justify-content:space-between;align-items:center;gap:12px;}
-  .badge{font-weight:700;font-size:12px;padding:6px 10px;border-radius:999px;display:inline-flex;align-items:center;letter-spacing:.2px;}
+  .badges{display:flex;gap:8px;align-items:center;min-width:0}
+  .badge{font-weight:700;font-size:12px;padding:6px 10px;border-radius:4px;display:inline-flex;align-items:center;letter-spacing:.2px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .badge--nacional{background:var(--hp-orange);color:#fff;}
   .badge--internacional{background:var(--hp-blue);color:#fff;}
-  .date{font-size:12px;color:var(--hp-gray)}
+  .badge--outline{background:#fff;border:2px solid var(--hp-orange);color:var(--hp-black);}
+  .date{font-size:12px;color:var(--hp-gray);white-space:nowrap;}
   .title{font-weight:700;font-size:18px;line-height:1.25;margin:0;}
-  .tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#fff;background:var(--hp-black);padding:6px 10px;border-radius:999px;width:max-content;}
-  .tag[hidden]{display:none}
   .vehicle{display:flex;align-items:center;gap:10px;margin-top:2px;}
-  .vehicle img{width:22px;height:22px;border-radius:50%;border:1px solid #eee;object-fit:cover;background:#fff;}
+  .vehicle img{width:22px;height:22px;border-radius:4px;border:1px solid #eee;object-fit:cover;background:#fff;}
   .vehicle span{font-size:12px;color:var(--hp-gray)}
   .cta{display:flex;justify-content:flex-end;margin-top:auto;}
-  .button-link{border:2px solid var(--hp-black);color:var(--hp-black);background:#fff;padding:8px 14px;border-radius:999px;font-weight:700;text-decoration:none;transition:transform .06s ease;}
+  .button-link{border:2px solid var(--hp-black);color:#fff;background:var(--hp-black);padding:8px 14px;border-radius:4px;font-weight:700;text-decoration:none;transition:transform .06s ease;}
   .button-link:hover{transform:translateY(-1px);}
   .list-footer{display:flex;justify-content:center;margin:24px 0 8px;}
   .empty{padding:28px;text-align:center;color:var(--hp-gray)}
@@ -65,15 +63,19 @@
           <option value="internacional">Internacional</option>
         </select>
       </div>
-      <div class="control" id="commodityControl" hidden>
-        <label for="commodity">Commodity</label>
-        <select id="commodity">
+      <div class="control" id="categoriaControl" hidden>
+        <label for="categoria">Categoria</label>
+        <select id="categoria">
           <option value="">Todas</option>
         </select>
       </div>
       <div class="control">
-        <label for="search">Busca por título</label>
-        <input id="search" type="search" placeholder="Digite parte do título…">
+        <label for="from">De</label>
+        <input id="from" type="date">
+      </div>
+      <div class="control">
+        <label for="to">Até</label>
+        <input id="to" type="date">
       </div>
       <button id="apply" class="btn">Aplicar filtros</button>
     </div>
@@ -85,14 +87,12 @@
     <div id="emptyState" class="empty" style="display:none">Nenhuma notícia encontrada com os filtros atuais.</div>
   </div>
 
-  <!-- PapaParse -->
   <script defer src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-
-  <!-- Captura erros globais e mostra na linha de status -->
   <script>
-    window.addEventListener('error', function(e){
-      var el = document.getElementById('statsLine');
-      if(el) el.textContent = 'Erro de script: ' + (e.message || 'desconhecido');
+    // mostra erros JS no subtítulo
+    window.addEventListener('error', e=>{
+      const el=document.getElementById('statsLine');
+      if(el) el.textContent='Erro de script: '+(e.message||'desconhecido');
     });
   </script>
 
@@ -100,34 +100,29 @@
   (function(){
     const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR3Wkg0xuRA_RhRVfyS0azJ80LfzN9Ezm7Xg64J_ebTTm7S3LjmNI8BpqhjOJ-PzyjtCdCeEtfdaFSE/pub?output=csv';
 
-    // Cabeçalhos (Commodity/Logo opcionais)
     const FIELD = {
-      categoria:'Categoria',
-      titulo:'Titulo',
-      veiculo:'Veiculo',
-      data:'DataPublicacao',
-      url:'URL',
-      escopo:'Escopo',
-      commodity:'Commodity',
-      logo:'Logo'
+      categoria:'Categoria', titulo:'Titulo', veiculo:'Veiculo',
+      data:'DataPublicacao', url:'URL', escopo:'Escopo',
+      commodity:'Commodity', logo:'Logo'
     };
 
     const PAGE_SIZE = 9;
-    let master = [], view = [], page = 0, hasCommodity = false;
+    let master = [], view = [], page = 0, hasCategoria = false;
 
     const els = {
       container: document.getElementById('container'),
       loadMore: document.getElementById('loadMore'),
       empty: document.getElementById('emptyState'),
       escopo: document.getElementById('escopo'),
-      commodity: document.getElementById('commodity'),
-      commodityControl: document.getElementById('commodityControl'),
-      search: document.getElementById('search'),
+      categoria: document.getElementById('categoria'),
+      categoriaControl: document.getElementById('categoriaControl'),
+      from: document.getElementById('from'),
+      to: document.getElementById('to'),
       apply: document.getElementById('apply'),
       stats: document.getElementById('statsLine')
     };
 
-    // ---------- Helpers
+    // ------------ Utils
     function clean(s){
       return String(s||'')
         .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
@@ -135,218 +130,175 @@
         .trim()
         .toLowerCase();
     }
-    const monthsPt = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+    function titleCasePt(s){
+      return String(s||'')
+        .toLocaleLowerCase('pt-BR')
+        .replace(/([\p{L}\p{M}]+)/gu, w => w.charAt(0).toLocaleUpperCase('pt-BR') + w.slice(1));
+    }
+    const monthsPt=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 
-    // Aceita ISO com/sem hora e DD/MM/YYYY com/sem hora
+    // parser ESTRITO (evita chutes do Date.parse)
     function parseDateFlexible(s){
       if(!s) return null;
       s = String(s).trim();
 
-      let t = Date.parse(s);
-      if(!isNaN(t)) return new Date(t);
+      // corta horário/timezone se houver
+      const onlyDate = s.replace(/[T\s].*$/,'');
 
-      let onlyDate = s.replace(/[T\s].*$/, '');
-      t = Date.parse(onlyDate);
-      if(!isNaN(t)) return new Date(t);
-
+      // YYYY/MM/DD ou YYYY-MM-DD ou YYYY.MM.DD
       let m = onlyDate.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/);
       if(m) return new Date(+m[1], +m[2]-1, +m[3]);
 
+      // DD/MM/YYYY ou DD-MM-YYYY
       m = onlyDate.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
       if(m){
         const y = m[3].length===2 ? +('20'+m[3]) : +m[3];
         return new Date(y, +m[2]-1, +m[1]);
       }
-      return null;
+      return null; // desconhecido → exibe texto original
     }
     function formatDatePt(d){
-      if(!(d instanceof Date) || isNaN(d)) return '';
-      var day=d.getDate(), mon=monthsPt[d.getMonth()], year=d.getFullYear();
-      return (String(day).padStart(2,'0') + ' ' + mon + ' ' + year);
+      if(!(d instanceof Date)||isNaN(d)) return '';
+      const day=d.getDate(), mon=monthsPt[d.getMonth()], year=d.getFullYear();
+      return `${String(day).padStart(2,'0')} ${mon} ${year}`;
     }
     function byDateDesc(a,b){ return (b.__ts||0)-(a.__ts||0); }
-    function escapeHtml(s){
-      return String(s||'').replace(/[&<>"']/g,function(c){
-        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
-      });
-    }
-    function plural(n,sing,plur){ return n===1?sing:plur; }
 
-    function extractDomain(u){
-      try{ var hostname = new URL(u).hostname; return hostname.replace(/^www\./,''); }
-      catch(_){ return ''; }
-    }
+    function extractDomain(u){ try{ return new URL(u).hostname.replace(/^www\./,''); }catch{ return ''; } }
     function logoForItem(item){
       if(item.logo) return item.logo.trim();
-      var domain = extractDomain(item.url||'');
-      if(domain) return 'https://www.google.com/s2/favicons?sz=64&domain=' + encodeURIComponent(domain);
-      return 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="#ddd"/></svg>');
+      const d=extractDomain(item.url||'');
+      return d ? `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(d)}`
+               : 'data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="#ddd"/></svg>');
     }
 
-    // ---------- Normalização por linha
+    // ------------ Normalize each row
     function normalizeRow(r){
-      var escRaw = (r[FIELD.escopo]||'');
-      var escClean = clean(escRaw);
-      var escNorm = '';
-      if(escClean.indexOf('nac')===0) escNorm = 'nacional';
-      else if(escClean.indexOf('int')===0) escNorm = 'internacional';
+      const escRaw = (r[FIELD.escopo]||'');
+      const escClean = clean(escRaw);
+      let escNorm='';
+      if(escClean.startsWith('nac')) escNorm='nacional';
+      else if(escClean.startsWith('int')) escNorm='internacional';
 
-      var dt = parseDateFlexible(r[FIELD.data]||'');
-      var commodityRaw = (r[FIELD.commodity]||'').trim();
-      var commodityNorm = clean(commodityRaw);
-      if(commodityRaw) hasCommodity = true;
+      const dt = parseDateFlexible(r[FIELD.data]||'');
+
+      const catRaw = (r[FIELD.categoria] || r[FIELD.commodity] || '').trim();
+      const catNorm = clean(catRaw);
+      if(catRaw) hasCategoria = true;
 
       return {
-        categoria:(r[FIELD.categoria]||'').trim(),
-        titulo:(r[FIELD.titulo]||'').trim(),
-        veiculo:(r[FIELD.veiculo]||'').trim(),
-        data:(r[FIELD.data]||'').trim(),
+        categoria: catRaw,
+        __categoria: catNorm,
+        titulo: (r[FIELD.titulo]||'').trim(),
+        veiculo: (r[FIELD.veiculo]||'').trim(),
+        data: (r[FIELD.data]||'').trim(),
         __date: dt?formatDatePt(dt):'',
-        __ts: dt?dt.getTime():0,
-        url:(r[FIELD.url]||'').trim(),
-        escopo:(escRaw||'').trim(),
+        __ts:  dt?dt.getTime():0,             // se não reconheceu, __ts=0 -> não entra no filtro de data
+        url: (r[FIELD.url]||'').trim(),
+        escopo: (escRaw||'').trim(),
         __esc: escNorm,
-        commodity: commodityRaw,
-        __commodity: commodityNorm,
-        logo:(r[FIELD.logo]||'').trim()
+        logo: (r[FIELD.logo]||'').trim()
       };
     }
 
-    // ---------- Render (sem HTML complexo inline)
+    // ------------ Render
     function renderCard(item){
-      var card = document.createElement('div');
-      card.className = 'card';
+      const card=document.createElement('div'); card.className='card';
 
-      var top = document.createElement('div');
-      top.className = 'top-row';
+      const top=document.createElement('div'); top.className='top-row';
+      const left=document.createElement('div'); left.className='badges';
 
-      var badge = document.createElement('span');
-      var esc = item.__esc || '';
-      badge.className = 'badge ' + (esc==='nacional' ? 'badge--nacional' : esc==='internacional' ? 'badge--internacional' : '');
-      badge.textContent = item.escopo || '—';
+      const esc=item.__esc||'';
+      const escBadge=document.createElement('span');
+      escBadge.className='badge '+(esc==='nacional'?'badge--nacional':esc==='internacional'?'badge--internacional':'');
+      escBadge.textContent=item.escopo||'—';
+      left.appendChild(escBadge);
 
-      var date = document.createElement('span');
-      date.className = 'date';
-      date.textContent = item.__date || item.data || '—';
-
-      top.appendChild(badge);
-      top.appendChild(date);
-
-      var title = document.createElement('h5');
-      title.className = 'title';
-      title.textContent = item.titulo || 'Sem título';
-
-      var tag = document.createElement('span');
-      tag.className = 'tag';
-      if(hasCommodity && item.commodity){
-        tag.textContent = item.commodity;
-      }else{
-        tag.hidden = true;
+      if(item.categoria){
+        const catBadge=document.createElement('span');
+        catBadge.className='badge badge--outline';
+        catBadge.textContent=item.categoria;
+        left.appendChild(catBadge);
       }
 
-      var titleWrap = document.createElement('div');
-      titleWrap.style.display = 'flex';
-      titleWrap.style.flexDirection = 'column';
-      titleWrap.style.gap = '6px';
-      titleWrap.appendChild(title);
-      titleWrap.appendChild(tag);
+      const date=document.createElement('span'); date.className='date';
+      date.textContent=item.__date || item.data || '—';
 
-      var vehicle = document.createElement('div');
-      vehicle.className = 'vehicle';
+      top.appendChild(left); top.appendChild(date);
 
-      var img = document.createElement('img');
-      img.alt = '';
-      img.src = logoForItem(item);
-      img.onerror = function(){
-        this.onerror = null;
-        this.src = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="#ddd"/></svg>');
-      };
+      const title=document.createElement('h5'); title.className='title';
+      title.textContent=item.titulo||'Sem título';
 
-      var veicSpan = document.createElement('span');
-      veicSpan.textContent = item.veiculo || '';
+      const vehicle=document.createElement('div'); vehicle.className='vehicle';
+      const img=document.createElement('img'); img.alt=''; img.src=logoForItem(item);
+      img.onerror=function(){ this.onerror=null; this.src='data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="#ddd"/></svg>'); };
+      const veicSpan=document.createElement('span'); veicSpan.textContent=item.veiculo||'';
+      vehicle.appendChild(img); vehicle.appendChild(veicSpan);
 
-      vehicle.appendChild(img);
-      vehicle.appendChild(veicSpan);
-
-      var ctaWrap = document.createElement('div');
-      ctaWrap.className = 'cta';
-
-      var link = document.createElement('a');
-      link.className = 'button-link';
-      link.href = item.url || '#';
-      link.target = '_blank';
-      link.rel = 'noopener';
-      link.textContent = 'Ver notícia';
-
+      const ctaWrap=document.createElement('div'); ctaWrap.className='cta';
+      const link=document.createElement('a'); link.className='button-link'; link.href=item.url||'#'; link.target='_blank'; link.rel='noopener'; link.textContent='Ver notícia';
       ctaWrap.appendChild(link);
 
-      card.appendChild(top);
-      card.appendChild(titleWrap);
-      card.appendChild(vehicle);
-      card.appendChild(ctaWrap);
-
+      card.appendChild(top); card.appendChild(title); card.appendChild(vehicle); card.appendChild(ctaWrap);
       return card;
     }
 
+    // ------------ UI helpers
     function clearGrid(){ els.container.innerHTML=''; }
     function paintNextPage(){
-      var start = page*PAGE_SIZE;
-      var slice = view.slice(start, start+PAGE_SIZE);
-      for(var i=0;i<slice.length;i++){
-        els.container.appendChild(renderCard(slice[i]));
-      }
-      page++;
-      var hasMore = (page*PAGE_SIZE) < view.length;
-      els.loadMore.style.display = hasMore ? '' : 'none';
-      els.empty.style.display = view.length ? 'none' : '';
+      const start=page*PAGE_SIZE, slice=view.slice(start,start+PAGE_SIZE);
+      slice.forEach(i=>els.container.appendChild(renderCard(i)));
+      page++; els.loadMore.style.display=(page*PAGE_SIZE)<view.length?'':'none';
+      els.empty.style.display=view.length?'none':'';
     }
 
-    function dedupe(arr){
-      var seen = Object.create(null), out = [];
-      for(var i=0;i<arr.length;i++){ var v = arr[i]; if(v && !seen[v]){ seen[v]=1; out.push(v); } }
-      return out;
-    }
-    function populateCommodityFilter(){
-      if(!hasCommodity){
-        els.commodityControl.hidden = true;
-        return;
-      }
-      var values = master.map(function(r){ return r.commodity; }).filter(Boolean);
-      var labels = dedupe(values).sort(function(a,b){ return a.localeCompare(b,'pt-BR'); });
-      var html = '<option value="">Todas</option>';
-      for(var i=0;i<labels.length;i++){
-        html += '<option value="' + clean(labels[i]) + '">' + escapeHtml(labels[i]) + '</option>';
-      }
-      els.commodity.innerHTML = html;
-      els.commodityControl.hidden = false;
+    // dedup case-insensitive com rótulo bonito
+    function buildCategoryOptions(){
+      if(!hasCategoria){ els.categoriaControl.hidden=true; return; }
+      const map=Object.create(null);
+      master.forEach(r=>{
+        if(!r.categoria) return;
+        const key=r.__categoria; if(!key) return;
+        if(!map[key]) map[key]=r.categoria;
+      });
+      Object.keys(map).forEach(k=> map[k]=titleCasePt(map[k]));
+      const keys=Object.keys(map).sort((a,b)=> map[a].localeCompare(map[b],'pt-BR'));
+      let html='<option value="">Todas</option>';
+      keys.forEach(k=> html+=`<option value="${k}">${map[k]}</option>`);
+      els.categoria.innerHTML=html;
+      els.categoriaControl.hidden=false;
     }
 
     function isFiltering(){
-      var esc = clean(els.escopo.value);
-      var com = hasCommodity ? clean(els.commodity.value) : '';
-      var q   = clean(els.search.value);
-      return !!(esc || com || q);
+      const esc=clean(els.escopo.value);
+      const cat=hasCategoria?els.categoria.value:'';
+      const from=els.from.value?Date.parse(els.from.value+'T00:00:00'):null;
+      const to  =els.to.value?Date.parse(els.to.value+'T23:59:59'):null;
+      return !!(esc||cat||from||to);
     }
+    function plural(n,sing,plur){ return n===1?sing:plur; }
     function updateStats(){
-      var total = master.length, current = view.length;
-      if(isFiltering()){
-        els.stats.textContent = 'Mostrando ' + current + ' ' + (current===1?'matéria':'matérias') +
-                                ' de ' + total + ' ' + (total===1?'menção':'menções') + '.';
-      }else{
-        els.stats.textContent = 'Total de ' + total + ' ' + (total===1?'menção':'menções') + '.';
-      }
+      const total=master.length, current=view.length;
+      els.stats.textContent = isFiltering()
+        ? `Mostrando ${current} ${plural(current,'matéria','matérias')} de ${total} ${plural(total,'menção','menções')}.`
+        : `Total de ${total} ${plural(total,'menção','menções')}.`;
     }
 
     function applyFilters(){
-      var escopoVal = clean(els.escopo.value);   // '' | 'nacional' | 'internacional'
-      var commVal   = hasCommodity ? clean(els.commodity.value) : '';
-      var q         = clean(els.search.value);
+      const escopoVal=clean(els.escopo.value);
+      const catKey=hasCategoria?els.categoria.value:'';
+      const fromTs=els.from.value?Date.parse(els.from.value+'T00:00:00'):null;
+      const toTs  =els.to.value?Date.parse(els.to.value+'T23:59:59'):null;
 
-      view = master.filter(function(r){
-        var okEsc = !escopoVal || r.__esc === escopoVal;
-        var okCo  = !hasCommodity || !commVal || r.__commodity === commVal;
-        var okQ   = !q || clean(r.titulo).indexOf(q) !== -1;
-        return okEsc && okCo && okQ;
+      view = master.filter(r=>{
+        const okEsc = !escopoVal || r.__esc === escopoVal;
+        const okCat = !hasCategoria || !catKey || r.__categoria === catKey;
+
+        let okDate = true;
+        if(fromTs !== null) okDate = okDate && (r.__ts && r.__ts >= fromTs);
+        if(toTs   !== null) okDate = okDate && (r.__ts && r.__ts <= toTs);
+
+        return okEsc && okCat && okDate;
       }).sort(byDateDesc);
 
       page=0; clearGrid(); paintNextPage(); updateStats();
@@ -354,48 +306,31 @@
 
     els.apply.addEventListener('click', applyFilters);
     els.loadMore.addEventListener('click', paintNextPage);
-    els.search.addEventListener('keydown', function(e){ if(e.key==='Enter') applyFilters(); });
 
-    function showDemo(reason){
-      els.stats.textContent = (reason || 'Dados indisponíveis.') + ' Exibindo exemplos.';
-      var demo = [
-        {Titulo:'Exemplo 1',DataPublicacao:'2025-09-03',URL:'#',Escopo:'Nacional',Veiculo:'Demo'},
-        {Titulo:'Exemplo 2',DataPublicacao:'2025-09-01',URL:'#',Escopo:'Internacional',Veiculo:'Demo'},
-        {Titulo:'Exemplo 3',DataPublicacao:'2025-08-28',URL:'#',Escopo:'Nacional',Veiculo:'Demo'}
-      ];
-      hasCommodity = false;
-      master = demo.map(normalizeRow);
-      populateCommodityFilter();
-      applyFilters();
-    }
-
+    // ------------ Boot
     function loadCSV(){
-      if(!window.Papa){
-        els.stats.textContent = 'Erro: biblioteca de leitura (PapaParse) não carregou.';
-        return;
-      }
-      Papa.parse(CSV_URL, {
+      if(!window.Papa){ els.stats.textContent='Erro: biblioteca de leitura (PapaParse) não carregou.'; return; }
+      Papa.parse(CSV_URL,{
         download:true, header:true, skipEmptyLines:true,
-        complete:function(res){
+        complete: res=>{
           try{
-            hasCommodity = false;
-            var rows = res.data || [];
-            master = rows.map(normalizeRow).filter(function(r){ return r.titulo && r.url; });
+            hasCategoria=false;
+            const rows=res.data||[];
+            master = rows.map(normalizeRow).filter(r=> r.titulo && r.url);
             master.sort(byDateDesc);
-            populateCommodityFilter();
+            buildCategoryOptions();
             applyFilters();
           }catch(err){
-            console.error('Falha ao processar CSV:', err);
-            showDemo('Falha ao processar CSV.');
+            console.error('Falha ao processar CSV:',err);
+            els.stats.textContent='Falha ao processar CSV.';
           }
         },
-        error:function(err){
-          console.error('Erro CSV:', err);
-          showDemo('Erro ao baixar o CSV publicado.');
+        error: err=>{
+          console.error('Erro CSV:',err);
+          els.stats.textContent='Erro ao baixar o CSV publicado.';
         }
       });
     }
-
     window.addEventListener('load', loadCSV);
   })();
   </script>
