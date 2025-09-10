@@ -37,6 +37,8 @@
   .badge--nacional{background:var(--hp-orange);color:#fff;}
   .badge--internacional{background:var(--hp-blue);color:#fff;}
   .badge--outline{background:#fff;border:2px solid var(--hp-orange);color:var(--hp-black);}
+  .badge--printed{background:#fff;border:2px solid #BDBDBD;color:var(--hp-gray);} /* “Material impresso” */
+
   .date{font-size:12px;color:var(--hp-gray);white-space:nowrap;}
   .title{font-weight:700;font-size:18px;line-height:1.25;margin:0;}
   .vehicle{display:flex;align-items:center;gap:10px;margin-top:2px;}
@@ -137,25 +139,21 @@
     }
     const monthsPt=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 
-    // parser ESTRITO (evita chutes do Date.parse)
+    // parser estrito
     function parseDateFlexible(s){
       if(!s) return null;
       s = String(s).trim();
-
-      // corta horário/timezone se houver
       const onlyDate = s.replace(/[T\s].*$/,'');
-
       // YYYY/MM/DD ou YYYY-MM-DD ou YYYY.MM.DD
       let m = onlyDate.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/);
       if(m) return new Date(+m[1], +m[2]-1, +m[3]);
-
       // DD/MM/YYYY ou DD-MM-YYYY
       m = onlyDate.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
       if(m){
         const y = m[3].length===2 ? +('20'+m[3]) : +m[3];
         return new Date(y, +m[2]-1, +m[1]);
       }
-      return null; // desconhecido → exibe texto original
+      return null;
     }
     function formatDatePt(d){
       if(!(d instanceof Date)||isNaN(d)) return '';
@@ -193,8 +191,8 @@
         veiculo: (r[FIELD.veiculo]||'').trim(),
         data: (r[FIELD.data]||'').trim(),
         __date: dt?formatDatePt(dt):'',
-        __ts:  dt?dt.getTime():0,             // se não reconheceu, __ts=0 -> não entra no filtro de data
-        url: (r[FIELD.url]||'').trim(),
+        __ts:  dt?dt.getTime():0,
+        url: (r[FIELD.url]||'').trim(),             // pode estar vazio
         escopo: (escRaw||'').trim(),
         __esc: escNorm,
         logo: (r[FIELD.logo]||'').trim()
@@ -236,8 +234,21 @@
       vehicle.appendChild(img); vehicle.appendChild(veicSpan);
 
       const ctaWrap=document.createElement('div'); ctaWrap.className='cta';
-      const link=document.createElement('a'); link.className='button-link'; link.href=item.url||'#'; link.target='_blank'; link.rel='noopener'; link.textContent='Ver notícia';
-      ctaWrap.appendChild(link);
+
+      if(item.url){
+        const link=document.createElement('a');
+        link.className='button-link';
+        link.href=item.url;
+        link.target='_blank';
+        link.rel='noopener';
+        link.textContent='Ver notícia';
+        ctaWrap.appendChild(link);
+      }else{
+        const printed = document.createElement('span');
+        printed.className = 'badge badge--printed';
+        printed.textContent = 'Material impresso';
+        ctaWrap.appendChild(printed);
+      }
 
       card.appendChild(top); card.appendChild(title); card.appendChild(vehicle); card.appendChild(ctaWrap);
       return card;
@@ -316,7 +327,8 @@
           try{
             hasCategoria=false;
             const rows=res.data||[];
-            master = rows.map(normalizeRow).filter(r=> r.titulo && r.url);
+            // agora NÃO exigimos URL; só título
+            master = rows.map(normalizeRow).filter(r=> r.titulo);
             master.sort(byDateDesc);
             buildCategoryOptions();
             applyFilters();
